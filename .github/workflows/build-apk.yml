@@ -139,10 +139,14 @@ jobs:
 
           echo "APK_OUT=$APK_OUT" >> $GITHUB_ENV
 
-      - name: Upload Signed and Unsigned APK
+      - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: LeviLauncher-${{ github.event.inputs.version_tag }}
-          path: |
-            ${{ env.APK_OUT }}
-            ${{ env.UNSIGNED_APK }}
+          name: LeviLauncher-${{ github.event.inputs.version_tag }}-signed
+          path: ${{ env.APK_OUT }}
+
+      - name: Upload Unsigned APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LeviLauncher-${{ github.event.inputs.version_tag }}-unsigned
+          path: ${{ env.UNSIGNED_APK }}
