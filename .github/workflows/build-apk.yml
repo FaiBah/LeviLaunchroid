@@ -3,12 +3,8 @@ name: Build LeviLaunchroid Release APK
 on:
   workflow_dispatch:
     inputs:
-      source_branch:
-        description: 'Branch to build from'
-        required: true
-        default: 'v1.0.0'
-      version_tag:
-        description: 'Version tag to use (e.g. v1.0.0)'
+      branch_tag:
+        description: 'Branch/tag to build from and use as version (e.g. v1.0.0)'
         required: true
         default: 'v1.0.0'
 
@@ -20,14 +16,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.source_branch }}
+          ref: ${{ github.event.inputs.branch_tag }}
           fetch-depth: 0
           fetch-tags: true
           submodules: "recursive"
 
       - name: Set custom version tag
         run: |
-          git tag -f ${{ github.event.inputs.version_tag }}
+          git tag -f ${{ github.event.inputs.branch_tag }}
           git fetch --tags --force
 
       - name: Debug git describe
@@ -111,7 +107,7 @@ jobs:
       - name: Rename Unsigned APK
         run: |
           APK=$(find app/build/outputs/apk/release -name "*-unsigned.apk" | head -n1)
-          UNSIGNED_APK="LeviLauncher-${{ github.event.inputs.version_tag }}-unsigned.apk"
+          UNSIGNED_APK="LeviLauncher-${{ github.event.inputs.branch_tag }}-unsigned.apk"
           cp "$APK" "$UNSIGNED_APK"
           echo "UNSIGNED_APK=$UNSIGNED_APK" >> $GITHUB_ENV
 
@@ -125,7 +121,7 @@ jobs:
 
       - name: Sign APK with testkey
         run: |
-          APK_OUT="LeviLauncher-${{ github.event.inputs.version_tag }}-release.apk"
+          APK_OUT="LeviLauncher-${{ github.event.inputs.branch_tag }}-release.apk"
 
           apksigner sign \
             --key testkey.pk8 \
@@ -142,11 +138,11 @@ jobs:
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: LeviLauncher-${{ github.event.inputs.version_tag }}-signed
+          name: LeviLauncher-${{ github.event.inputs.branch_tag }}-signed
           path: ${{ env.APK_OUT }}
 
       - name: Upload Unsigned APK
         uses: actions/upload-artifact@v4
         with:
-          name: LeviLauncher-${{ github.event.inputs.version_tag }}-unsigned
+          name: LeviLauncher-${{ github.event.inputs.branch_tag }}-unsigned
           path: ${{ env.UNSIGNED_APK }}
