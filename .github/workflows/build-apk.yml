@@ -26,11 +26,8 @@ jobs:
 
       - name: Set custom version tag
         run: |
-          git tag -f ${{ github.event.inputs.tag }}
-          git fetch --tags --force
-
-      - name: Debug exact git describe command
-        run: git describe --tags --abbrev=0
+          git tag -f ${{ github.event.inputs.tag }} HEAD
+          git describe --tags --abbrev=0
 
       - name: Placeholder google-services.json
         run: |
