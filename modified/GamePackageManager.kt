@@ -1,3 +1,5 @@
+package org.levimc.launcher.core.minecraft
+
     @SuppressLint("UnsafeDynamicallyLoadedCode")
     fun loadLibraryDetailed(name: String): LibraryLoadResult {
         val fileName = toLibraryFileName(name)
