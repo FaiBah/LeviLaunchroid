@@ -15,6 +15,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,11 +47,21 @@ jobs:
               {
                 "client_info": {
                   "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
-                  "android_client_info": { "package_name": "org.levimc.launcher" }
+                  "android_client_info": {
+                    "package_name": "org.levimc.launcher"
+                  }
                 },
                 "oauth_client": [],
-                "api_key": [ { "current_key": "AIzaSyCIOnlyPlaceholderKey" } ],
-                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyCIOnlyPlaceholderKey"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
               }
             ],
             "configuration_version": "1"
@@ -63,24 +74,8 @@ jobs:
           java-version: "21"
           distribution: temurin
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
-
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.ANDROID_HOME }}
-          key: android-sdk-${{ runner.os }}-35.0.0
 
       - name: Accept Licenses
         run: yes | sdkmanager --licenses
@@ -107,18 +102,47 @@ jobs:
       - name: Inject API Keys
         env:
           CF_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-        run: echo "curseforge.api_key=${CF_API_KEY}" >> local.properties
+        run: |
+          echo "curseforge.api_key=${CF_API_KEY}" >> local.properties
 
       - name: Build Unsigned Release APK
         run: ./gradlew assembleRelease --build-cache
 
-      - name: Rename APK
+      - name: Rename Unsigned APK
         run: |
           APK=$(find app/build/outputs/apk/release -name "*-unsigned.apk" | head -n1)
-          cp "$APK" "LeviLauncher-${{ github.event.inputs.version_tag }}-unsigned.apk"
+          UNSIGNED_APK="LeviLauncher-${{ github.event.inputs.version_tag }}-unsigned.apk"
+          cp "$APK" "$UNSIGNED_APK"
+          echo "UNSIGNED_APK=$UNSIGNED_APK" >> $GITHUB_ENV
 
-      - name: Upload APK as artifact
+      - name: Download Android testkey
+        run: |
+          wget -q -O testkey.pk8 "https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.pk8"
+          wget -q -O testkey.x509.pem "https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.x509.pem"
+
+      - name: Install apksigner
+        run: sudo apt-get update && sudo apt-get install -y apksigner
+
+      - name: Sign APK with testkey
+        run: |
+          APK_OUT="LeviLauncher-${{ github.event.inputs.version_tag }}-release.apk"
+
+          apksigner sign \
+            --key testkey.pk8 \
+            --cert testkey.x509.pem \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --v4-signing-enabled true \
+            --out "$APK_OUT" \
+            "${{ env.UNSIGNED_APK }}"
+
+          echo "APK_OUT=$APK_OUT" >> $GITHUB_ENV
+
+      - name: Upload Signed and Unsigned APK
         uses: actions/upload-artifact@v4
         with:
           name: LeviLauncher-${{ github.event.inputs.version_tag }}
-          path: LeviLauncher-${{ github.event.inputs.version_tag }}-unsigned.apk
+          path: |
+            ${{ env.APK_OUT }}
+            ${{ env.UNSIGNED_APK }}
