@@ -1,0 +1,119 @@
+name: Build LeviLaunchroid Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: 'Branch to build from'
+        required: true
+        default: 'v1.0.0'
+      version_tag:
+        description: 'Version tag to use (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.source_branch }}
+          fetch-depth: 0
+          fetch-tags: true
+          submodules: "recursive"
+
+      - name: Set custom version tag
+        run: |
+          git tag -f ${{ github.event.inputs.version_tag }}
+          git fetch --tags --force
+
+      - name: Debug git describe
+        run: git describe --tags --always
+
+      - name: Placeholder google-services.json
+        run: |
+          mkdir -p app
+          cat > app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "ci-placeholder",
+              "storage_bucket": "ci-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": { "package_name": "org.levimc.launcher" }
+                },
+                "oauth_client": [],
+                "api_key": [ { "current_key": "AIzaSyCIOnlyPlaceholderKey" } ],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ANDROID_HOME }}
+          key: android-sdk-${{ runner.os }}-35.0.0
+
+      - name: Accept Licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Install Build Tools 35.0.0
+        run: sdkmanager "build-tools;35.0.0"
+
+      - name: Setup Xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: "2.9.9"
+          actions-cache-folder: ".xmake-cache"
+          actions-cache-key: "ubuntulinux-ci"
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28c
+          link-to-sdk: true
+
+      - name: Grant Execute Permission to gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build Unsigned Release APK
+        run: ./gradlew assembleRelease --build-cache
+
+      - name: Rename APK
+        run: |
+          APK=$(find app/build/outputs/apk/release -name "*-unsigned.apk" | head -n1)
+          cp "$APK" "LeviLauncher-${{ github.event.inputs.version_tag }}-unsigned.apk"
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LeviLauncher-${{ github.event.inputs.version_tag }}
+          path: LeviLauncher-${{ github.event.inputs.version_tag }}-unsigned.apk
