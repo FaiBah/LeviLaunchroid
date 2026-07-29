@@ -102,7 +102,7 @@ jobs:
           echo "curseforge.api_key=${CF_API_KEY}" >> local.properties
 
       - name: Build Unsigned Release APK
-        run: ./gradlew assembleRelease --build-cache
+        run: ./gradlew assembleRelease
 
       - name: Rename Unsigned APK
         run: |
