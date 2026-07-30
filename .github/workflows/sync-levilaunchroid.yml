@@ -78,7 +78,7 @@ jobs:
         run: |
           cd upstream-repo
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin HEAD:${{ env.BRANCH }}
+          git push origin HEAD:refs/heads/${{ env.BRANCH }}
 
       - name: Complete summary
         if: env.SKIP != 'true'
