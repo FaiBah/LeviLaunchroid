@@ -146,12 +146,15 @@ jobs:
         with:
           name: LeviLauncher-${{ github.event.inputs.tag }}-unsigned
           path: ${{ env.UNSIGNED_APK }}
-
+      
       - name: Create GitHub Release with APKs
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
           name: "LeviLauncher ${{ github.event.inputs.tag }}"
+          body: |
+            Original release notes:
+            https://github.com/LiteLDev/LeviLaunchroid/releases/tag/${{ github.event.inputs.tag }}
           files: |
             ${{ env.APK_OUT }}
             ${{ env.UNSIGNED_APK }}
