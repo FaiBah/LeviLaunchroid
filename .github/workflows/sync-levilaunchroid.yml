@@ -35,20 +35,23 @@ jobs:
 
       - name: Check if branch already exists
         run: |
-          if git ls-remote --heads origin "${{ env.TAG }}" | grep -q "${{ env.TAG }}"; then
-            echo "Branch ${{ env.TAG }} already exists. Skipping sync."
+          BRANCH="${{ env.TAG }}-source"
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            echo "Branch $BRANCH already exists. Skipping sync."
             echo "SKIP=true" >> $GITHUB_ENV
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Status: ⏭️ Skipped" >> $GITHUB_STEP_SUMMARY
-            echo "Reason: Branch \`${{ env.TAG }}\` already exists." >> $GITHUB_STEP_SUMMARY
+            echo "Reason: Branch \`$BRANCH\` already exists." >> $GITHUB_STEP_SUMMARY
           else
-            echo "Branch ${{ env.TAG }} does not exist. Continue sync."
+            echo "Branch $BRANCH does not exist. Continue sync."
             echo "SKIP=false" >> $GITHUB_ENV
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Status: 🔄 Sync required" >> $GITHUB_STEP_SUMMARY
-            echo "Creating branch \`${{ env.TAG }}\` from upstream." >> $GITHUB_STEP_SUMMARY
+            echo "Creating branch \`$BRANCH\` from upstream." >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Clone upstream LeviLaunchroid
@@ -75,7 +78,7 @@ jobs:
         run: |
           cd upstream-repo
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin HEAD:${{ env.TAG }}
+          git push origin HEAD:${{ env.BRANCH }}
 
       - name: Complete summary
         if: env.SKIP != 'true'
@@ -84,4 +87,4 @@ jobs:
           echo "## Result" >> $GITHUB_STEP_SUMMARY
           echo "✅ Successfully synced LeviLaunchroid **${{ env.TAG }}**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Branch created: \`${{ env.TAG }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Branch created: \`${{ env.BRANCH }}\`" >> $GITHUB_STEP_SUMMARY
