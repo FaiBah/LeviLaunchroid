@@ -27,23 +27,6 @@ LeviLauncher is a lightweight, open-source Android launcher for legitimate playe
 
 ---
 
-## System Requirements
-
-- Android 9.0 (API 28) or higher
-- ARM64 (v8a) device
-- At least 1 GB RAM (2 GB+ recommended)
-- At least 2 GB free storage
-
----
-
-## Installation
-
-1. Download the APK from the **Releases** page
-2. Enable "Install from unknown sources" in your device settings
-3. Install the APK and open LeviLauncher
-
----
-
 ## Credits
 
 Original project by the [LeviMC Team](https://github.com/LiteLDev/LeviLaunchroid).
