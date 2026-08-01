@@ -3,10 +3,10 @@ name: Modify Java file content
 on:
   workflow_dispatch:
     inputs:
-      target_branch:
-        description: 'Branch to apply the change to (e.g. v1.5.9-source)'
+      tag:
+        description: 'Version tag (e.g. v1.5.9)'
         required: true
-        default: 'v1.5.9-source'
+        default: 'v1.5.9'
 
 permissions:
   contents: write
@@ -18,7 +18,7 @@ jobs:
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.target_branch }}
+          ref: ${{ github.event.inputs.tag }}-source
           fetch-depth: 0
 
       - name: Configure git identity
@@ -26,7 +26,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: PlayStoreValidator.java
+      - name: Replace PlayStoreValidator.java
         run: |
           FILE="app/src/main/java/org/levimc/launcher/util/PlayStoreValidator.java"
 
@@ -54,4 +54,4 @@ jobs:
         run: |
           git add -A
           git commit -m "Update files"
-          git push origin HEAD:${{ github.event.inputs.target_branch }}
+          git push origin HEAD:${{ github.event.inputs.tag }}-source
