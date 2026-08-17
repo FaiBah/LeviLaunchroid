@@ -1,0 +1,226 @@
+name: Build release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Version tag (leave empty for latest source branch)
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Find latest source branch
+        id: source
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$TAG" ]; then
+            BRANCH="${TAG}-source"
+          else
+            BRANCH=$(git ls-remote --heads "https://github.com/${GITHUB_REPOSITORY}.git" |
+              awk -F/ '$NF ~ /^v[0-9]+\.[0-9]+\.[0-9]+-source$/ {print $NF}' |
+              sort -V | tail -n1)
+
+            [ -n "$BRANCH" ] || { echo "No source branch found"; exit 1; }
+            TAG="${BRANCH%-source}"
+          fi
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Using $BRANCH"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.branch }}
+          fetch-depth: 0
+          fetch-tags: true
+          submodules: recursive
+
+      - name: Set version tag
+        env:
+          TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          git tag -f "$TAG" HEAD
+          git describe --tags --abbrev=0
+
+      - name: Create placeholder google-services.json
+        run: |
+          mkdir -p app
+          cat > app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "ci-placeholder",
+              "storage_bucket": "ci-placeholder.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                "android_client_info": {
+                  "package_name": "org.levimc.launcher"
+                }
+              },
+              "oauth_client": [],
+              "api_key": [{
+                "current_key": "AIzaSyCIOnlyPlaceholderKey"
+              }],
+              "services": {
+                "appinvite_service": {
+                  "other_platform_oauth_client": []
+                }
+              }
+            }],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android tools
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "build-tools;35.0.0"
+
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: "2.9.9"
+          actions-cache-folder: ".xmake-cache"
+          actions-cache-key: "ubuntulinux-ci"
+
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28c
+          link-to-sdk: true
+
+      - name: Configure build
+        env:
+          CF_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+        run: |
+          chmod +x gradlew
+          echo "curseforge.api_key=$CF_API_KEY" >> local.properties
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease
+
+      - name: Prepare unsigned APK
+        env:
+          TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          APK=$(find app/build/outputs/apk/release -name '*-unsigned.apk' | head -n1)
+          [ -n "$APK" ] || { echo "Unsigned APK not found"; exit 1; }
+
+          OUT="LeviLauncher-${TAG}-unsigned.apk"
+          cp "$APK" "$OUT"
+          echo "UNSIGNED_APK=$OUT" >> "$GITHUB_ENV"
+
+      - name: Install apksigner
+        run: |
+          wget -q -O testkey.pk8 \
+            https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.pk8
+          wget -q -O testkey.x509.pem \
+            https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.x509.pem
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq apksigner
+
+      - name: Sign APK
+        env:
+          TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          OUT="LeviLauncher-${TAG}-release.apk"
+
+          apksigner sign \
+            --key testkey.pk8 \
+            --cert testkey.x509.pem \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --v4-signing-enabled true \
+            --out "$OUT" \
+            "$UNSIGNED_APK"
+
+          echo "APK_OUT=$OUT" >> "$GITHUB_ENV"
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LeviLauncher-${{ steps.source.outputs.tag }}-signed
+          path: ${{ env.APK_OUT }}
+
+      - name: Upload unsigned APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LeviLauncher-${{ steps.source.outputs.tag }}-unsigned
+          path: ${{ env.UNSIGNED_APK }}
+
+      - name: Create GitHub release
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.source.outputs.tag }}
+          name: LeviLauncher ${{ steps.source.outputs.tag }}
+          body: |
+            Original release notes:
+            https://github.com/LiteLDev/LeviLaunchroid/releases/tag/${{ steps.source.outputs.tag }}
+          files: |
+            ${{ env.APK_OUT }}
+            ${{ env.UNSIGNED_APK }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Final summary
+        if: always()
+        env:
+          TAG: ${{ steps.source.outputs.tag }}
+          BRANCH: ${{ steps.source.outputs.branch }}
+          SIGNED: ${{ env.APK_OUT }}
+          UNSIGNED: ${{ env.UNSIGNED_APK }}
+          RELEASE: ${{ steps.release.outcome }}
+        run: |
+          {
+            echo "## 🚀 LeviLauncher Release"
+            echo ""
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| Version | **$TAG** |"
+            echo "| Source branch | \`$BRANCH\` |"
+
+            if [ -f "$SIGNED" ]; then
+              echo "| Signed APK | \`$SIGNED\` |"
+              echo "| Signed size | **$(du -h "$SIGNED" | cut -f1)** |"
+            else
+              echo "| Signed APK | ❌ Not created |"
+            fi
+
+            if [ -f "$UNSIGNED" ]; then
+              echo "| Unsigned APK | \`$UNSIGNED\` |"
+              echo "| Unsigned size | **$(du -h "$UNSIGNED" | cut -f1)** |"
+            else
+              echo "| Unsigned APK | ❌ Not created |"
+            fi
+
+            echo ""
+            echo "### Status"
+            [ -f "$SIGNED" ] && [ -f "$UNSIGNED" ] \
+              && echo "✅ APK build completed" \
+              || echo "❌ APK build incomplete"
+
+            echo ""
+            echo "### GitHub Release"
+            case "$RELEASE" in
+              success) echo "✅ Release created successfully" ;;
+              skipped) echo "⏭️ Release step skipped" ;;
+              *) echo "❌ Release failed" ;;
+            esac
+          } >> "$GITHUB_STEP_SUMMARY"
