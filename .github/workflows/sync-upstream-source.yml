@@ -1,0 +1,86 @@
+name: Sync upstream source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find latest upstream tag
+        id: upstream
+        run: |
+          TAG=$(git ls-remote --tags --refs https://github.com/LiteLDev/LeviLaunchroid.git \
+            | awk -F/ '{print $3}' | sort -V | tail -n1)
+
+          [ -n "$TAG" ] || { echo "No upstream tag found"; exit 1; }
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream tag: $TAG"
+
+      - name: Check target branch
+        id: branch
+        env:
+          TAG: ${{ steps.upstream.outputs.tag }}
+        run: |
+          BRANCH="${TAG}-source"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Branch already exists: $BRANCH"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Creating branch: $BRANCH"
+          fi
+
+      - name: Sync upstream
+        if: steps.branch.outputs.exists != 'true'
+        env:
+          TAG: ${{ steps.upstream.outputs.tag }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --recurse-submodules \
+            --branch "$TAG" \
+            https://github.com/LiteLDev/LeviLaunchroid.git upstream
+
+          cd upstream
+          rm -rf .github/workflows
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git diff --cached --quiet || git commit -m "Sync upstream source"
+
+          git remote set-url origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          git push origin HEAD:"$BRANCH"
+
+      - name: Summary
+        env:
+          TAG: ${{ steps.upstream.outputs.tag }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          EXISTS: ${{ steps.branch.outputs.exists }}
+        run: |
+          {
+            echo "## Upstream sync"
+            echo ""
+            echo "Version: **$TAG**"
+            echo "Branch: \`$BRANCH\`"
+            if [ "$EXISTS" = true ]; then
+              echo "Status: ⏭️ Already exists"
+            else
+              echo "Status: ✅ Created"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
