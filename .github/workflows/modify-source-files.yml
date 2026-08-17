@@ -1,12 +1,12 @@
-name: Modify Java files
+name: Modify source files
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Version tag (e.g. v1.5.9)
-        required: true
-        default: v1.5.9
+        description: Version tag (leave empty for latest source branch)
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -16,9 +16,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Find source branch
+        id: branch
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$TAG" ]; then
+            echo "branch=${TAG}-source" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH=$(git ls-remote --heads "https://github.com/${GITHUB_REPOSITORY}.git" \
+              | awk -F/ '$NF ~ /^v[0-9]+\.[0-9]+\.[0-9]+-source$/ {print $NF}' \
+              | sort -V \
+              | tail -n1)
+
+            [ -n "$BRANCH" ] || { echo "No source branch found"; exit 1; }
+
+            echo "Latest source branch: $BRANCH"
+            echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}-source
+          ref: ${{ steps.branch.outputs.branch }}
           fetch-depth: 0
 
       - name: Replace PlayStoreValidator.java
@@ -60,4 +79,4 @@ jobs:
           git add -A
           git diff --cached --quiet && exit 0
           git commit -m "Update source files"
-          git push origin HEAD:${{ inputs.tag }}-source
+          git push origin HEAD:${{ steps.branch.outputs.branch }}
