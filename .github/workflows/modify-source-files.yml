@@ -9,6 +9,7 @@ on:
   workflow_call:
     inputs:
       tag:
+        description: Version tag
         required: true
         type: string
 
@@ -20,6 +21,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Validate tag
+        run: |
+          [ -n "${{ inputs.tag }}" ] || {
+            echo "ERROR: tag is empty"
+            exit 1
+          }
+
+          echo "Version: ${{ inputs.tag }}"
+          echo "Branch: ${{ inputs.tag }}-source"
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}-source
@@ -66,4 +77,4 @@ jobs:
           git add -A
           git diff --cached --quiet && exit 0
           git commit -m "Update source files"
-          git push origin HEAD:${{ inputs.tag }}-source
+          git push origin HEAD:"refs/heads/${{ inputs.tag }}-source"
