@@ -65,6 +65,15 @@ jobs:
             's|GITHUB_LATEST_API = "https://api.github.com/repos/%s/%s/releases/latest"|GITHUB_LATEST_API = "https://api.github.com/repos/FaiBah/LeviLaunchroid/releases/latest"|' \
             "$FILE"
 
+      - name: Set app name
+        run: |
+          FILE=app/src/main/res/values/strings.xml
+          test -f "$FILE" || exit 1
+
+          sed -i \
+            's|<string name="app_name">.*</string>|<string name="app_name">LeviLauncher (M)</string>|' \
+            "$FILE"
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
