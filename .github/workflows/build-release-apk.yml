@@ -1,11 +1,6 @@
 name: Build release APK
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Version tag
-        required: true
   workflow_call:
     inputs:
       tag:
@@ -130,12 +125,14 @@ jobs:
 
           echo "APK_OUT=$OUT" >> "$GITHUB_ENV"
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v4
         with:
           name: LeviLauncher-${{ inputs.tag }}-signed
           path: ${{ env.APK_OUT }}
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload unsigned APK artifact
+        uses: actions/upload-artifact@v4
         with:
           name: LeviLauncher-${{ inputs.tag }}-unsigned
           path: ${{ env.UNSIGNED_APK }}
@@ -151,7 +148,6 @@ jobs:
             https://github.com/LiteLDev/LeviLaunchroid/releases/tag/${{ inputs.tag }}
           files: |
             ${{ env.APK_OUT }}
-            ${{ env.UNSIGNED_APK }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -165,21 +161,35 @@ jobs:
             echo "|---|---|"
             echo "| Version | **${{ inputs.tag }}** |"
             echo "| Source branch | \`${{ inputs.tag }}-source\` |"
-            echo "| Signed APK | \`${{ env.APK_OUT }}\` |"
-            echo "| Unsigned APK | \`${{ env.UNSIGNED_APK }}\` |"
 
             if [ -f "${{ env.APK_OUT }}" ]; then
+              echo "| Signed APK | \`${{ env.APK_OUT }}\` |"
               echo "| Signed size | **$(du -h "${{ env.APK_OUT }}" | cut -f1)** |"
+            else
+              echo "| Signed APK | ❌ Not created |"
             fi
 
             if [ -f "${{ env.UNSIGNED_APK }}" ]; then
+              echo "| Unsigned APK | \`${{ env.UNSIGNED_APK }}\` |"
               echo "| Unsigned size | **$(du -h "${{ env.UNSIGNED_APK }}" | cut -f1)** |"
+            else
+              echo "| Unsigned APK | ❌ Not created |"
             fi
 
             echo ""
             echo "### Status"
             echo "✅ APK build completed"
+
             echo ""
             echo "### GitHub Release"
-            echo "✅ Release created successfully"
+            case "${{ steps.release.outcome }}" in
+              success) echo "✅ Signed APK published" ;;
+              skipped) echo "⏭️ Release skipped" ;;
+              *) echo "❌ Release failed" ;;
+            esac
+
+            echo ""
+            echo "### Artifacts"
+            echo "✅ Signed APK artifact"
+            echo "✅ Unsigned APK artifact"
           } >> "$GITHUB_STEP_SUMMARY"

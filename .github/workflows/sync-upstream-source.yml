@@ -1,18 +1,12 @@
 name: Sync upstream source
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Version tag (leave empty for latest)
-        required: false
-        default: ""
   workflow_call:
     inputs:
       tag:
-        required: false
+        description: Version tag
+        required: true
         type: string
-        default: ""
 
 permissions:
   contents: write
@@ -20,43 +14,26 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.source.outputs.tag }}
-      branch: ${{ steps.source.outputs.branch }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Find upstream version
-        id: source
-        env:
-          INPUT_TAG: ${{ inputs.tag }}
+      - name: Validate tag
         run: |
-          if [ -n "$INPUT_TAG" ]; then
-            TAG="$INPUT_TAG"
-          else
-            TAG=$(git ls-remote --tags --refs \
-              https://github.com/LiteLDev/LeviLaunchroid.git |
-              awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ {print $3}' |
-              sort -V | tail -n1)
-          fi
+          [ -n "${{ inputs.tag }}" ] || {
+            echo "ERROR: tag is empty"
+            exit 1
+          }
 
-          [ -n "$TAG" ] || { echo "No upstream tag found"; exit 1; }
-
-          BRANCH="${TAG}-source"
-
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-
-          echo "Using version: $TAG"
-          echo "Target branch: $BRANCH"
+          echo "Version: ${{ inputs.tag }}"
+          echo "Target branch: ${{ inputs.tag }}-source"
 
       - name: Check target branch
         id: check
         env:
-          BRANCH: ${{ steps.source.outputs.branch }}
+          BRANCH: ${{ inputs.tag }}-source
         run: |
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -69,8 +46,8 @@ jobs:
       - name: Sync upstream
         if: steps.check.outputs.exists != 'true'
         env:
-          TAG: ${{ steps.source.outputs.tag }}
-          BRANCH: ${{ steps.source.outputs.branch }}
+          TAG: ${{ inputs.tag }}
+          BRANCH: ${{ inputs.tag }}-source
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git clone --recurse-submodules \
@@ -93,8 +70,8 @@ jobs:
 
       - name: Summary
         env:
-          TAG: ${{ steps.source.outputs.tag }}
-          BRANCH: ${{ steps.source.outputs.branch }}
+          TAG: ${{ inputs.tag }}
+          BRANCH: ${{ inputs.tag }}-source
           EXISTS: ${{ steps.check.outputs.exists }}
         run: |
           {

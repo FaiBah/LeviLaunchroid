@@ -1,11 +1,6 @@
 name: Modify source files
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Version tag
-        required: true
   workflow_call:
     inputs:
       tag:
@@ -67,14 +62,17 @@ jobs:
           test -f "$FILE" || exit 1
 
           sed -i \
-            's|https://api.github.com/repos/%s/%s/releases/latest|https://api.github.com/repos/FaiBah/LeviLaunchroid/releases/latest|' \
+            's|GITHUB_LATEST_API = "https://api.github.com/repos/%s/%s/releases/latest"|GITHUB_LATEST_API = "https://api.github.com/repos/FaiBah/LeviLaunchroid/releases/latest"|' \
             "$FILE"
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
           git add -A
+
           git diff --cached --quiet && exit 0
+
           git commit -m "Update source files"
           git push origin HEAD:"refs/heads/${{ inputs.tag }}-source"
