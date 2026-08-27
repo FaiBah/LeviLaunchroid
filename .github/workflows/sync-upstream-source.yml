@@ -49,7 +49,9 @@ jobs:
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-          echo "Using $TAG → $BRANCH"
+
+          echo "Using version: $TAG"
+          echo "Target branch: $BRANCH"
 
       - name: Check target branch
         id: check
@@ -61,6 +63,7 @@ jobs:
             echo "Branch already exists: $BRANCH"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Branch does not exist: $BRANCH"
           fi
 
       - name: Sync upstream
@@ -86,7 +89,7 @@ jobs:
           git remote set-url origin \
             "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
-          git push origin HEAD:"$BRANCH"
+          git push origin HEAD:"refs/heads/$BRANCH"
 
       - name: Summary
         env:
@@ -101,6 +104,7 @@ jobs:
             echo "|---|---|"
             echo "| Version | **$TAG** |"
             echo "| Branch | \`$BRANCH\` |"
+
             if [ "$EXISTS" = true ]; then
               echo "| Status | ⏭️ Already exists |"
             else
