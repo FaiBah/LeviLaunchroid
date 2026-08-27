@@ -1,0 +1,36 @@
+name: LeviLauncher release pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Version tag (leave empty for latest upstream)
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync upstream
+    uses: ./.github/workflows/sync-upstream-source.yml
+    with:
+      tag: ${{ inputs.tag }}
+    secrets: inherit
+
+  modify:
+    name: Modify source
+    needs: sync
+    uses: ./.github/workflows/modify-source-files.yml
+    with:
+      tag: ${{ needs.sync.outputs.tag }}
+    secrets: inherit
+
+  build:
+    name: Build release APK
+    needs: modify
+    uses: ./.github/workflows/build-release-apk.yml
+    with:
+      tag: ${{ needs.sync.outputs.tag }}
+    secrets: inherit

@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Version tag (leave empty for latest source branch)
-        required: false
-        default: ""
+        description: Version tag
+        required: true
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -16,28 +20,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Find source branch
-        id: branch
-        env:
-          TAG: ${{ inputs.tag }}
-        run: |
-          if [ -n "$TAG" ]; then
-            echo "branch=${TAG}-source" >> "$GITHUB_OUTPUT"
-          else
-            BRANCH=$(git ls-remote --heads "https://github.com/${GITHUB_REPOSITORY}.git" \
-              | awk -F/ '$NF ~ /^v[0-9]+\.[0-9]+\.[0-9]+-source$/ {print $NF}' \
-              | sort -V \
-              | tail -n1)
-
-            [ -n "$BRANCH" ] || { echo "No source branch found"; exit 1; }
-
-            echo "Latest source branch: $BRANCH"
-            echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v4
         with:
-          ref: ${{ steps.branch.outputs.branch }}
+          ref: ${{ inputs.tag }}-source
           fetch-depth: 0
 
       - name: Replace PlayStoreValidator.java
@@ -70,7 +55,9 @@ jobs:
           FILE=app/src/main/java/org/levimc/launcher/util/GithubReleaseUpdater.java
           test -f "$FILE" || exit 1
 
-          sed -i 's|https://api.github.com/repos/%s/%s/releases/latest|https://api.github.com/repos/FaiBah/LeviLaunchroid/releases/latest|' "$FILE"
+          sed -i \
+            's|https://api.github.com/repos/%s/%s/releases/latest|https://api.github.com/repos/FaiBah/LeviLaunchroid/releases/latest|' \
+            "$FILE"
 
       - name: Commit and push
         run: |
@@ -79,4 +66,4 @@ jobs:
           git add -A
           git diff --cached --quiet && exit 0
           git commit -m "Update source files"
-          git push origin HEAD:${{ steps.branch.outputs.branch }}
+          git push origin HEAD:${{ inputs.tag }}-source

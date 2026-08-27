@@ -2,6 +2,17 @@ name: Sync upstream source
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Version tag (leave empty for latest)
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      tag:
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -9,45 +20,55 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.source.outputs.tag }}
+      branch: ${{ steps.source.outputs.branch }}
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Find latest upstream tag
-        id: upstream
+      - name: Find upstream version
+        id: source
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
-          TAG=$(git ls-remote --tags --refs https://github.com/LiteLDev/LeviLaunchroid.git \
-            | awk -F/ '{print $3}' | sort -V | tail -n1)
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG=$(git ls-remote --tags --refs \
+              https://github.com/LiteLDev/LeviLaunchroid.git |
+              awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ {print $3}' |
+              sort -V | tail -n1)
+          fi
 
           [ -n "$TAG" ] || { echo "No upstream tag found"; exit 1; }
 
+          BRANCH="${TAG}-source"
+
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Latest upstream tag: $TAG"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "Using $TAG → $BRANCH"
 
       - name: Check target branch
-        id: branch
+        id: check
         env:
-          TAG: ${{ steps.upstream.outputs.tag }}
+          BRANCH: ${{ steps.source.outputs.branch }}
         run: |
-          BRANCH="${TAG}-source"
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "Branch already exists: $BRANCH"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Creating branch: $BRANCH"
           fi
 
       - name: Sync upstream
-        if: steps.branch.outputs.exists != 'true'
+        if: steps.check.outputs.exists != 'true'
         env:
-          TAG: ${{ steps.upstream.outputs.tag }}
-          BRANCH: ${{ steps.branch.outputs.branch }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.source.outputs.tag }}
+          BRANCH: ${{ steps.source.outputs.branch }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git clone --recurse-submodules \
             --branch "$TAG" \
@@ -63,24 +84,26 @@ jobs:
           git diff --cached --quiet || git commit -m "Sync upstream source"
 
           git remote set-url origin \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           git push origin HEAD:"$BRANCH"
 
       - name: Summary
         env:
-          TAG: ${{ steps.upstream.outputs.tag }}
-          BRANCH: ${{ steps.branch.outputs.branch }}
-          EXISTS: ${{ steps.branch.outputs.exists }}
+          TAG: ${{ steps.source.outputs.tag }}
+          BRANCH: ${{ steps.source.outputs.branch }}
+          EXISTS: ${{ steps.check.outputs.exists }}
         run: |
           {
-            echo "## Upstream sync"
+            echo "## 🔄 Upstream sync"
             echo ""
-            echo "Version: **$TAG**"
-            echo "Branch: \`$BRANCH\`"
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| Version | **$TAG** |"
+            echo "| Branch | \`$BRANCH\` |"
             if [ "$EXISTS" = true ]; then
-              echo "Status: ⏭️ Already exists"
+              echo "| Status | ⏭️ Already exists |"
             else
-              echo "Status: ✅ Created"
+              echo "| Status | ✅ Created |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
