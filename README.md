@@ -8,7 +8,7 @@
 
 **A lightweight Android launcher for Minecraft: Bedrock Edition**
 
-[![GitHub Release](https://img.shields.io/github/v/release/LiteLDev/LeviLaunchroid?style=flat-square&color=blue)](https://github.com/FaiBah/LeviLaunchroid/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/FaiBah/LeviLaunchroid?style=flat-square&color=blue)](https://github.com/FaiBah/LeviLaunchroid/releases)
 [![License: Apache 2.0](https://img.shields.io/github/license/LiteLDev/LeviLaunchroid)](https://github.com/LiteLDev/LeviLaunchroid/blob/main/LICENSE)
 [![Android](https://img.shields.io/badge/Android-9.0%2B-green?style=flat-square&logo=android)](https://www.android.com/)
 
