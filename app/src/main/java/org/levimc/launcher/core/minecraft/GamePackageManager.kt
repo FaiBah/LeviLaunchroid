@@ -60,30 +60,46 @@ class GamePackageManager private constructor(
         val detail: String? = null
     )
 
-    init {
-        report("GamePackageManager init started")
-        val packageName = detectGamePackage() ?: throw IllegalStateException("Minecraft not found")
+init {
+    report("GamePackageManager init started")
+
+    if (version != null && !version.isInstalled) {
+        report("Minecraft app not installed, using downloaded game version")
+
+        packageContext = context
+
+        applicationInfo = MinecraftLauncher(context)
+            .createFakeApplicationInfo(
+                version,
+                MinecraftLauncher.MC_PACKAGE_NAME
+            )
+
+        nativeLibDir = resolveNativeLibDir()
+    } else {
+        val packageName = detectGamePackage()
+            ?: throw IllegalStateException("Minecraft not found")
+
         report("Detected Minecraft package: $packageName")
+
         packageContext = context.createPackageContext(
             packageName,
             Context.CONTEXT_IGNORE_SECURITY or Context.CONTEXT_INCLUDE_CODE
         )
-        
-        if (version != null && !version.isInstalled) {
-            applicationInfo = MinecraftLauncher(context).createFakeApplicationInfo(version, MinecraftLauncher.MC_PACKAGE_NAME)
-            nativeLibDir = applicationInfo.nativeLibraryDir
-        } else {
-            applicationInfo = packageContext.applicationInfo
-            nativeLibDir = resolveNativeLibDir()
-        }
-        
-        extractLibraries()
-        report("Creating AssetManager")
-        assetManager = createAssetManager()
-        report("AssetManager ready")
-        setupSecurityProvider()
-        report("GamePackageManager init finished")
+
+        applicationInfo = packageContext.applicationInfo
+        nativeLibDir = resolveNativeLibDir()
     }
+
+    extractLibraries()
+
+    report("Creating AssetManager")
+    assetManager = createAssetManager()
+    report("AssetManager ready")
+
+    setupSecurityProvider()
+
+    report("GamePackageManager init finished")
+}
 
     private fun detectGamePackage(): String? {
         return knownPackages.firstOrNull { isPackageInstalled(it) }
