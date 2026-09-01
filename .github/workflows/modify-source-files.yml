@@ -18,43 +18,24 @@ jobs:
     steps:
       - name: Validate tag
         run: |
-          [ -n "${{ inputs.tag }}" ] || {
-            echo "ERROR: tag is empty"
-            exit 1
-          }
-
-          echo "Version: ${{ inputs.tag }}"
-          echo "Branch: ${{ inputs.tag }}-source"
+          [ -n "${{ inputs.tag }}" ] || exit 1
 
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}-source
           fetch-depth: 0
 
+      - name: Get modification files from main
+        run: git fetch origin main:refs/remotes/origin/main
+
       - name: Replace PlayStoreValidator.java
         run: |
-          FILE=app/src/main/java/org/levimc/launcher/util/PlayStoreValidator.java
-          test -f "$FILE" || exit 1
+          SOURCE=modify/PlayStoreValidator.java
+          TARGET=app/src/main/java/org/levimc/launcher/util/PlayStoreValidator.java
 
-          cat > "$FILE" <<'JAVA'
-          package org.levimc.launcher.util;
-
-          import android.content.Context;
-
-          public class PlayStoreValidator {
-              public static boolean isMinecraftFromPlayStore(Context context) {
-                  return true;
-              }
-
-              public static boolean isMinecraftInstalled(Context context) {
-                  return true;
-              }
-
-              public static boolean isLicenseVerified(Context context) {
-                  return true;
-              }
-          }
-          JAVA
+          if git cat-file -e "origin/main:$SOURCE" 2>/dev/null && [ -f "$TARGET" ]; then
+            git show "origin/main:$SOURCE" > "$TARGET"
+          fi
 
       - name: Set GitHub API
         run: |
@@ -73,6 +54,51 @@ jobs:
           sed -i \
             's|<string name="app_name">.*</string>|<string name="app_name">LeviLauncher (M)</string>|' \
             "$FILE"
+
+      - name: Modify GamePackageManager init
+        run: |
+          SOURCE=modify/GamePackageManager.init
+          TARGET=app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
+          TEMP_FILE="$RUNNER_TEMP/GamePackageManager.init"
+
+          if ! git cat-file -e "origin/main:$SOURCE" 2>/dev/null; then
+            exit 0
+          fi
+
+          if [ ! -f "$TARGET" ]; then
+            exit 0
+          fi
+
+          git show "origin/main:$SOURCE" > "$TEMP_FILE"
+
+          python3 - "$TEMP_FILE" "$TARGET" <<'PY'
+          import re
+          import sys
+
+          source_file = sys.argv[1]
+          target_file = sys.argv[2]
+
+          with open(source_file, "r", encoding="utf-8") as f:
+              replacement = f.read().strip()
+
+          with open(target_file, "r", encoding="utf-8") as f:
+              source = f.read()
+
+          pattern = r'(?ms)^    init\s*\{.*?^    \}'
+
+          modified, count = re.subn(
+              pattern,
+              lambda _: replacement,
+              source,
+              count=1
+          )
+
+          if count != 1:
+              sys.exit(0)
+
+          with open(target_file, "w", encoding="utf-8") as f:
+              f.write(modified)
+          PY
 
       - name: Commit and push
         run: |
