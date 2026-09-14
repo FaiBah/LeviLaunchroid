@@ -1,0 +1,113 @@
+name: Modify source files
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Version tag
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  modify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate tag
+        run: |
+          [ -n "${{ inputs.tag }}" ] || exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}-source
+          fetch-depth: 0
+
+      - name: Get modification files from main
+        run: git fetch origin main:refs/remotes/origin/main
+
+      - name: Replace PlayStoreValidator.java
+        run: |
+          SOURCE=modify/PlayStoreValidator.java
+          TARGET=app/src/main/java/org/levimc/launcher/util/PlayStoreValidator.java
+
+          if git cat-file -e "origin/main:$SOURCE" 2>/dev/null && [ -f "$TARGET" ]; then
+            git show "origin/main:$SOURCE" > "$TARGET"
+          fi
+
+      - name: Set GitHub API
+        run: |
+          FILE=app/src/main/java/org/levimc/launcher/util/GithubReleaseUpdater.java
+          test -f "$FILE" || exit 1
+
+          sed -i \
+            's|GITHUB_LATEST_API = "https://api.github.com/repos/%s/%s/releases/latest"|GITHUB_LATEST_API = "https://api.github.com/repos/FaiBah/LeviLaunchroid/releases/latest"|' \
+            "$FILE"
+
+      - name: Set app name
+        run: |
+          FILE=app/src/main/res/values/strings.xml
+          test -f "$FILE" || exit 1
+
+          sed -i \
+            's|<string name="app_name">.*</string>|<string name="app_name">LeviLauncher (M)</string>|' \
+            "$FILE"
+
+      - name: Modify GamePackageManager init
+        run: |
+          SOURCE=modify/GamePackageManager.init
+          TARGET=app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt
+          TEMP_FILE="$RUNNER_TEMP/GamePackageManager.init"
+
+          if ! git cat-file -e "origin/main:$SOURCE" 2>/dev/null; then
+            exit 0
+          fi
+
+          if [ ! -f "$TARGET" ]; then
+            exit 0
+          fi
+
+          git show "origin/main:$SOURCE" > "$TEMP_FILE"
+
+          python3 - "$TEMP_FILE" "$TARGET" <<'PY'
+          import re
+          import sys
+
+          source_file = sys.argv[1]
+          target_file = sys.argv[2]
+
+          with open(source_file, "r", encoding="utf-8") as f:
+              replacement = f.read().strip()
+
+          with open(target_file, "r", encoding="utf-8") as f:
+              source = f.read()
+
+          pattern = r'(?ms)^    init\s*\{.*?^    \}'
+
+          modified, count = re.subn(
+              pattern,
+              lambda _: replacement,
+              source,
+              count=1
+          )
+
+          if count != 1:
+              sys.exit(0)
+
+          with open(target_file, "w", encoding="utf-8") as f:
+              f.write(modified)
+          PY
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          git diff --cached --quiet && exit 0
+
+          git commit -m "Update source files"
+          git push origin HEAD:"refs/heads/${{ inputs.tag }}-source"

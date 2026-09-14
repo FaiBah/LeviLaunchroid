@@ -1,0 +1,90 @@
+name: Sync upstream source
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Version tag
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag
+        run: |
+          [ -n "${{ inputs.tag }}" ] || {
+            echo "ERROR: tag is empty"
+            exit 1
+          }
+
+          echo "Version: ${{ inputs.tag }}"
+          echo "Target branch: ${{ inputs.tag }}-source"
+
+      - name: Check target branch
+        id: check
+        env:
+          BRANCH: ${{ inputs.tag }}-source
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Branch already exists: $BRANCH"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Branch does not exist: $BRANCH"
+          fi
+
+      - name: Sync upstream
+        if: steps.check.outputs.exists != 'true'
+        env:
+          TAG: ${{ inputs.tag }}
+          BRANCH: ${{ inputs.tag }}-source
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --recurse-submodules \
+            --branch "$TAG" \
+            https://github.com/LiteLDev/LeviLaunchroid.git upstream
+
+          cd upstream
+          rm -rf .github/workflows
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git diff --cached --quiet || git commit -m "Sync upstream source"
+
+          git remote set-url origin \
+            "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          git push origin HEAD:"refs/heads/$BRANCH"
+
+      - name: Summary
+        env:
+          TAG: ${{ inputs.tag }}
+          BRANCH: ${{ inputs.tag }}-source
+          EXISTS: ${{ steps.check.outputs.exists }}
+        run: |
+          {
+            echo "## 🔄 Upstream sync"
+            echo ""
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| Version | **$TAG** |"
+            echo "| Branch | \`$BRANCH\` |"
+
+            if [ "$EXISTS" = true ]; then
+              echo "| Status | ⏭️ Already exists |"
+            else
+              echo "| Status | ✅ Created |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
