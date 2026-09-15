@@ -1,0 +1,75 @@
+name: LeviLauncher release pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Version tag (leave empty for latest upstream)
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: Determine version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Find version
+        id: version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG=$(git ls-remote --tags --refs \
+              https://github.com/LiteLDev/LeviLaunchroid.git |
+              awk -F/ '$3 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ {print $3}' |
+              sort -V |
+              tail -n1)
+          fi
+
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Invalid version tag: $TAG"
+            exit 1
+          }
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## 🚀 LeviLauncher pipeline"
+            echo ""
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| Version | **$TAG** |"
+            echo "| Source branch | \`$TAG-source\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  sync:
+    name: Sync upstream
+    needs: version
+    uses: ./.github/workflows/sync-upstream-source.yml
+    with:
+      tag: ${{ needs.version.outputs.tag }}
+    secrets: inherit
+
+  modify:
+    name: Modify source
+    needs: [version, sync]
+    uses: ./.github/workflows/modify-source-files.yml
+    with:
+      tag: ${{ needs.version.outputs.tag }}
+    secrets: inherit
+
+  build:
+    name: Build release APK
+    needs: [version, modify]
+    uses: ./.github/workflows/build-release-apk.yml
+    with:
+      tag: ${{ needs.version.outputs.tag }}
+    secrets: inherit
