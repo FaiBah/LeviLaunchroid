@@ -1,4 +1,4 @@
-name: Build release APK
+name: Build Release APK
 
 on:
   workflow_call:
@@ -22,12 +22,12 @@ jobs:
           fetch-tags: true
           submodules: recursive
 
-      - name: Set version tag
+      - name: Set Version Tag
         run: |
           git tag -f "${{ inputs.tag }}" HEAD
           git describe --tags --abbrev=0
 
-      - name: Create placeholder google-services.json
+      - name: Prepare google-services.json
         run: |
           mkdir -p app
           cat > app/google-services.json <<'JSON'
@@ -37,61 +37,73 @@ jobs:
               "project_id": "ci-placeholder",
               "storage_bucket": "ci-placeholder.appspot.com"
             },
-            "client": [{
-              "client_info": {
-                "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
-                "android_client_info": {
-                  "package_name": "org.levimc.launcher"
-                }
-              },
-              "oauth_client": [],
-              "api_key": [{
-                "current_key": "AIzaSyCIOnlyPlaceholderKey"
-              }],
-              "services": {
-                "appinvite_service": {
-                  "other_platform_oauth_client": []
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": {
+                    "package_name": "org.levimc.launcher"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyCIOnlyPlaceholderKey"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
                 }
               }
-            }],
+            ],
             "configuration_version": "1"
           }
           JSON
 
-      - uses: actions/setup-java@v4
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
         with:
           java-version: "21"
           distribution: temurin
 
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
-      - name: Install Android tools
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "build-tools;35.0.0"
+      - name: Accept Licenses
+        run: yes | sdkmanager --licenses
 
-      - uses: xmake-io/github-action-setup-xmake@v1
+      - name: Install Build Tools 35.0.0
+        run: sdkmanager "build-tools;35.0.0"
+
+      - name: Setup Xmake
+        uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: "2.9.9"
           actions-cache-folder: ".xmake-cache"
           actions-cache-key: "ubuntulinux-ci"
 
-      - uses: nttld/setup-ndk@v1
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
         with:
           ndk-version: r28c
           link-to-sdk: true
 
-      - name: Configure build
+      - name: Grant Execute Permission to gradlew
+        run: chmod +x ./gradlew
+
+      - name: Inject API Keys
         env:
           CF_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-        run: |
-          chmod +x gradlew
-          echo "curseforge.api_key=$CF_API_KEY" >> local.properties
+        run: echo "curseforge.api_key=${CF_API_KEY}" >> local.properties
 
-      - name: Build release APK
+      - name: Build Release APK
         run: ./gradlew assembleRelease
 
-      - name: Prepare unsigned APK
+      - name: Prepare Unsigned APK
         run: |
           APK=$(find app/build/outputs/apk/release -name '*-unsigned.apk' | head -n1)
           [ -n "$APK" ] || exit 1
@@ -100,7 +112,7 @@ jobs:
           cp "$APK" "$OUT"
           echo "UNSIGNED_APK=$OUT" >> "$GITHUB_ENV"
 
-      - name: Install apksigner
+      - name: Install Apksigner
         run: |
           wget -q -O testkey.pk8 \
             https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.pk8
@@ -125,19 +137,19 @@ jobs:
 
           echo "APK_OUT=$OUT" >> "$GITHUB_ENV"
 
-      - name: Upload signed APK artifact
+      - name: Upload Signed APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LeviLauncher-${{ inputs.tag }}-signed
           path: ${{ env.APK_OUT }}
 
-      - name: Upload unsigned APK artifact
+      - name: Upload Unsigned APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LeviLauncher-${{ inputs.tag }}-unsigned
           path: ${{ env.UNSIGNED_APK }}
 
-      - name: Create GitHub release
+      - name: Release APK to GitHub Releases
         id: release
         uses: softprops/action-gh-release@v2
         with:
