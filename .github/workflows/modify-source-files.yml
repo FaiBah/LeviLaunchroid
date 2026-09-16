@@ -36,16 +36,31 @@ jobs:
           SOURCE=modify/PlayStoreValidator.java
           TARGET=app/src/main/java/org/levimc/launcher/util/PlayStoreValidator.java
 
-          if git cat-file -e "origin/main:$SOURCE" 2>/dev/null && [ -f "$TARGET" ]; then
-            git show "origin/main:$SOURCE" > "$TARGET"
+          if ! git cat-file -e "origin/main:$SOURCE" 2>/dev/null; then
+            echo "Source file not found, skipping."
+            exit 0
           fi
+
+          if [ ! -f "$TARGET" ]; then
+            echo "Target file not found, skipping."
+            exit 0
+          fi
+
+          git show "origin/main:$SOURCE" > "$TARGET"
 
       - name: Set GitHub API
         run: |
           FILE=app/src/main/java/org/levimc/launcher/util/GithubReleaseUpdater.java
-          test -f "$FILE" || exit 1
 
-          grep -Fq 'https://api.github.com/repos/%s/%s/releases/latest' "$FILE" || exit 1
+          if [ ! -f "$FILE" ]; then
+            echo "Target file not found, skipping."
+            exit 0
+          fi
+
+          if ! grep -Fq 'https://api.github.com/repos/%s/%s/releases/latest' "$FILE"; then
+            echo "Expected API string not found, skipping."
+            exit 0
+          fi
 
           sed -i \
             "s|GITHUB_LATEST_API = \"https://api.github.com/repos/%s/%s/releases/latest\"|GITHUB_LATEST_API = \"https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest\"|" \
@@ -54,7 +69,11 @@ jobs:
       - name: Set app name
         run: |
           FILE=app/src/main/res/values/strings.xml
-          test -f "$FILE" || exit 1
+
+          if [ ! -f "$FILE" ]; then
+            echo "Target file not found, skipping."
+            exit 0
+          fi
 
           sed -i \
             's|<string name="app_name">.*</string>|<string name="app_name">LeviLauncher (M)</string>|' \
@@ -67,10 +86,12 @@ jobs:
           TEMP_FILE="$RUNNER_TEMP/GamePackageManager.init"
 
           if ! git cat-file -e "origin/main:$SOURCE" 2>/dev/null; then
+            echo "Source file not found, skipping."
             exit 0
           fi
 
           if [ ! -f "$TARGET" ]; then
+            echo "Target file not found, skipping."
             exit 0
           fi
 
@@ -99,6 +120,7 @@ jobs:
           )
 
           if count != 1:
+              print("init block not found, skipping.")
               sys.exit(0)
 
           with open(target_file, "w", encoding="utf-8") as f:
