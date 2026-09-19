@@ -66,7 +66,7 @@ jobs:
             "s|GITHUB_LATEST_API = \"https://api.github.com/repos/%s/%s/releases/latest\"|GITHUB_LATEST_API = \"https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest\"|" \
             "$FILE"
 
-      - name: Set app name
+      - name: Modify strings.xml
         run: |
           FILE=app/src/main/res/values/strings.xml
 
@@ -76,7 +76,8 @@ jobs:
           fi
 
           sed -i \
-            's|<string name="app_name">.*</string>|<string name="app_name">LeviLauncher (M)</string>|' \
+            -e 's|<string name="app_name">.*</string>|<string name="app_name">LeviLauncher (M)</string>|' \
+            -e 's|<string name="eula_message">.*</string>|<string name="eula_message"><b>Welcome to LeviLauncher</b>\n\nBy using this software you agree to:\n\n• This is an <b>unofficial</b> Minecraft launcher\n• Mods/resource packs are used at your own risk\n• Not affiliated with Mojang/Microsoft\n\nContinued use constitutes agreement</string>|' \
             "$FILE"
 
       - name: Modify GamePackageManager init
