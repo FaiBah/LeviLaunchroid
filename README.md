@@ -8,11 +8,10 @@
 
 **A lightweight Android launcher for Minecraft: Bedrock Edition**
 
-[![GitHub Release](https://img.shields.io/github/v/release/FaiBah/LeviLaunchroid?style=flat-square&color=blue)](https://github.com/FaiBah/LeviLaunchroid/releases)
-[![Original Release](https://img.shields.io/github/v/release/LiteLDev/LeviLaunchroid?style=flat-square&color=orange&label=Original%20Release)](https://github.com/LiteLDev/LeviLaunchroid/releases)
-
-[![License: Apache 2.0](https://img.shields.io/github/license/LiteLDev/LeviLaunchroid?style=flat-square)](https://github.com/LiteLDev/LeviLaunchroid/blob/main/LICENSE)
-[![Android](https://img.shields.io/badge/Android-9.0%2B-green?style=flat-square&logo=android)](https://www.android.com/)
+[![Release](https://img.shields.io/github/v/release/FaiBah/LeviLaunchroid?style=flat-square\&color=blue\&label=Release)](https://github.com/FaiBah/LeviLaunchroid/releases)
+[![Original Release](https://img.shields.io/github/v/release/LiteLDev/LeviLaunchroid?style=flat-square\&color=orange\&label=Original)](https://github.com/LiteLDev/LeviLaunchroid/releases)
+[![License](https://img.shields.io/github/license/LiteLDev/LeviLaunchroid?style=flat-square\&label=License)](https://github.com/LiteLDev/LeviLaunchroid/blob/main/LICENSE)
+[![Android](https://img.shields.io/badge/Android-9.0%2B-3DDC84?style=flat-square\&logo=android\&logoColor=white)](https://www.android.com/)
 
 </div>
 
