@@ -1,27 +1,53 @@
 <div align="center">
 
-![LeviLauncher Logo](https://avatars.githubusercontent.com/u/78095377?s=200&v=4)
+<img src="https://avatars.githubusercontent.com/u/78095377?s=200&v=4" width="120" alt="LeviLauncher Logo">
 
 # LeviLauncher
 
-![Banner](https://camo.githubusercontent.com/bd7bd77cb422a267057d9863095b239b096d4f46dc831a37b45867a9acfad697/68747470733a2f2f63617073756c652d72656e6465722e76657263656c2e6170702f6170693f747970653d576176696e6726636f6c6f723d74696d654772616469656e74266865696768743d33303026616e696d6174696f6e3d66616465496e2673656374696f6e3d68656164657226746578743d4c6576694d4326666f6e7453697a653d313230)
-
 **A lightweight Android launcher for Minecraft: Bedrock Edition**
 
-[![Release](https://img.shields.io/github/v/release/FaiBah/LeviLaunchroid?style=flat-square\&color=blue\&label=Release)](https://github.com/FaiBah/LeviLaunchroid/releases)
-[![Original Release](https://img.shields.io/github/v/release/LiteLDev/LeviLaunchroid?style=flat-square\&color=orange\&label=Original)](https://github.com/LiteLDev/LeviLaunchroid/releases)
-[![License](https://img.shields.io/github/license/LiteLDev/LeviLaunchroid?style=flat-square\&label=License)](https://github.com/LiteLDev/LeviLaunchroid/blob/main/LICENSE)
-[![Android](https://img.shields.io/badge/Android-9.0%2B-3DDC84?style=flat-square\&logo=android\&logoColor=white)](https://www.android.com/)
+[![Release](https://img.shields.io/github/v/release/FaiBah/LeviLaunchroid?style=flat-square&color=blue&label=Release)](https://github.com/FaiBah/LeviLaunchroid/releases)
+[![Original](https://img.shields.io/github/v/release/LiteLDev/LeviLaunchroid?style=flat-square&color=orange&label=Original)](https://github.com/LiteLDev/LeviLaunchroid/releases)
+[![Android](https://img.shields.io/badge/Android-9.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)](https://www.android.com/)
+[![License](https://img.shields.io/github/license/LiteLDev/LeviLaunchroid?style=flat-square&label=License)](https://github.com/LiteLDev/LeviLaunchroid/blob/main/LICENSE)
+
+![Banner](https://camo.githubusercontent.com/bd7bd77cb422a267057d9863095b239b096d4f46dc831a37b45867a9acfad697/68747470733a2f2f63617073756c652d72656e6465722e76657263656c2e6170702f6170693f747970653d576176696e6726636f6c6f723d74696d654772616469656e74266865696768743d33303026616e696d6174696f6e3d66616465496e2673656374696f6e3d68656164657226746578743d4c6576694d4326666f6e7453697a653d313230)
 
 </div>
 
----
-
 ## 📦 Releases
 
-- **Release:** [View Releases](https://github.com/FaiBah/LeviLaunchroid/releases)
-- **Original:** [View Original Releases](https://github.com/LiteLDev/LeviLaunchroid/releases)
+| | Build | Release |
+|:---:|:---|:---:|
+| 🚀 | **LeviLauncher** | 📥 [Download](https://github.com/FaiBah/LeviLaunchroid/releases/latest) |
+| 🧩 | **Original** | 📥 [Download](https://github.com/LiteLDev/LeviLaunchroid/releases/latest) |
+
+> **LeviLauncher** — Current build maintained in this repository.  
+> **Original** — Upstream build from the LeviMC Team.
+
+---
+
+## 📱 Requirements
+
+| | Requirement |
+|:---:|:---|
+| 🤖 | **Android 9.0+** |
+| 🎮 | **Minecraft: Bedrock Edition** |
+
+---
 
 ## 🙏 Credits
 
-Original project by the [LeviMC Team](https://github.com/LiteLDev/LeviLaunchroid).
+> 🧩 **Original Project**  
+> Created by the **LeviMC Team**  
+> 🔗 [LiteLDev/LeviLaunchroid](https://github.com/LiteLDev/LeviLaunchroid)
+
+---
+
+<div align="center">
+
+**LeviLauncher**
+
+<sub>Minecraft: Bedrock Edition Launcher for Android</sub>
+
+</div>
