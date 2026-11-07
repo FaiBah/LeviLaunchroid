@@ -27,6 +27,33 @@ jobs:
           git tag -f "${{ inputs.tag }}" HEAD
           git describe --tags --abbrev=0
 
+      - name: Download Discord Social SDK
+        env:
+          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+          DISCORD_SDK_REPOSITORY: ${{ vars.DISCORD_SDK_REPOSITORY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ] || [ -z "${DISCORD_SDK_REPOSITORY:-}" ]; then
+            echo "::error::Configure DISCORD_SDK_REPOSITORY and DISCORD_SDK_TOKEN."
+            echo "😒"
+          fi
+
+          mkdir -p app/libs
+
+          gh release download 'discord-sdk-1.10.19337' \
+            --repo "$DISCORD_SDK_REPOSITORY" \
+            --pattern 'discord_partner_sdk.aar' \
+            --dir app/libs \
+            --clobber
+
+          if ! printf '%s  %s\n' \
+            'b1b2491f1e1848c79fd6f1986d5aa1e0c8019e88a6e62c7be06b89e8e4870933' \
+            'app/libs/discord_partner_sdk.aar' | sha256sum --check --status; then
+            echo "::error::Discord SDK checksum mismatch."
+            exit 1
+          fi
+
       - name: Prepare google-services.json
         run: |
           mkdir -p app
