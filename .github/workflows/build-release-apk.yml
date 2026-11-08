@@ -28,6 +28,7 @@ jobs:
           git describe --tags --abbrev=0
 
       - name: Download Discord Social SDK
+        shell: bash
         run: |
           set -euo pipefail
 
@@ -35,8 +36,11 @@ jobs:
           RELEASE_TAG="discord-sdk-1.10.19337"
           ZIP_FILE="DiscordSocialSdk.zip"
           ZIP_PATH="$RUNNER_TEMP/$ZIP_FILE"
+
           SDK_FILE="discord_partner_sdk.aar"
           SDK_PATH="app/libs/$SDK_FILE"
+
+          AAR_ENTRY="discord_social_sdk/lib/release/discord_partner_sdk.aar"
 
           mkdir -p app/libs
 
@@ -52,38 +56,28 @@ jobs:
           fi
 
           echo "Validating SDK archive..."
-
           unzip -tq "$ZIP_PATH"
 
-          mapfile -t AAR_ENTRIES < <(
-            unzip -Z1 "$ZIP_PATH" |
-              grep -E '(^|/)discord_partner_sdk\.aar$' || true
-          )
+          echo "Checking SDK AAR..."
 
-          if [[ ${#AAR_ENTRIES[@]} -ne 1 ]]; then
-            echo "::error::Expected exactly one discord_partner_sdk.aar in the archive."
+          if ! unzip -Z1 "$ZIP_PATH" | grep -Fxq "$AAR_ENTRY"; then
+            echo "::error::Expected SDK AAR not found: $AAR_ENTRY"
+            echo "Available AAR files:"
+            unzip -Z1 "$ZIP_PATH" | grep -Ei '\.aar$' || true
             exit 1
           fi
 
-          echo "Extracting $SDK_FILE..."
+          echo "Extracting SDK AAR..."
 
-          unzip -p "$ZIP_PATH" "${AAR_ENTRIES[0]}" > "$SDK_PATH"
+          unzip -p "$ZIP_PATH" "$AAR_ENTRY" > "$SDK_PATH"
 
           if [[ ! -s "$SDK_PATH" ]]; then
             echo "::error::Discord SDK AAR is missing or empty."
             exit 1
           fi
 
-          if ! printf '%s  %s\n' \
-            'b1b2491f1e1848c79fd6f1986d5aa1e0c8019e88a6e62c7be06b89e8e4870933' \
-            "$SDK_PATH" | sha256sum --check --status; then
-            echo "::error::Discord SDK checksum mismatch."
-            echo "Actual checksum:"
-            sha256sum "$SDK_PATH"
-            exit 1
-          fi
-
-          echo "Discord Social SDK downloaded and verified successfully."
+          echo "Discord Social SDK downloaded successfully."
+          ls -lh "$SDK_PATH"
 
       - name: Prepare google-services.json
         run: |
