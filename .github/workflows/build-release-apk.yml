@@ -27,23 +27,47 @@ jobs:
           git tag -f "${{ inputs.tag }}" HEAD
           git describe --tags --abbrev=0
 
-      
       - name: Download Discord Social SDK
         run: |
           set -euo pipefail
 
           REPOSITORY="FaiBah/Discord-Social-SDK"
           RELEASE_TAG="discord-sdk-1.10.19337"
+          ZIP_FILE="DiscordSocialSdk.zip"
+          ZIP_PATH="$RUNNER_TEMP/$ZIP_FILE"
           SDK_FILE="discord_partner_sdk.aar"
           SDK_PATH="app/libs/$SDK_FILE"
 
           mkdir -p app/libs
 
-          gh release download "$RELEASE_TAG" \
-            --repo "$REPOSITORY" \
-            --pattern "$SDK_FILE" \
-            --dir app/libs \
-            --clobber
+          echo "Downloading Discord Social SDK..."
+
+          curl --fail --location --retry 3 \
+            "https://github.com/$REPOSITORY/releases/download/$RELEASE_TAG/$ZIP_FILE" \
+            --output "$ZIP_PATH"
+
+          if [[ ! -s "$ZIP_PATH" ]]; then
+            echo "::error::Discord SDK archive is missing or empty."
+            exit 1
+          fi
+
+          echo "Validating SDK archive..."
+
+          unzip -tq "$ZIP_PATH"
+
+          mapfile -t AAR_ENTRIES < <(
+            unzip -Z1 "$ZIP_PATH" |
+              grep -E '(^|/)discord_partner_sdk\.aar$' || true
+          )
+
+          if [[ ${#AAR_ENTRIES[@]} -ne 1 ]]; then
+            echo "::error::Expected exactly one discord_partner_sdk.aar in the archive."
+            exit 1
+          fi
+
+          echo "Extracting $SDK_FILE..."
+
+          unzip -p "$ZIP_PATH" "${AAR_ENTRIES[0]}" > "$SDK_PATH"
 
           if [[ ! -s "$SDK_PATH" ]]; then
             echo "::error::Discord SDK AAR is missing or empty."
@@ -54,6 +78,8 @@ jobs:
             'b1b2491f1e1848c79fd6f1986d5aa1e0c8019e88a6e62c7be06b89e8e4870933' \
             "$SDK_PATH" | sha256sum --check --status; then
             echo "::error::Discord SDK checksum mismatch."
+            echo "Actual checksum:"
+            sha256sum "$SDK_PATH"
             exit 1
           fi
 
