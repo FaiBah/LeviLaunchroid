@@ -28,53 +28,32 @@ jobs:
           git describe --tags --abbrev=0
 
       - name: Download Discord Social SDK
-        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
 
-          REPOSITORY="FaiBah/Discord-Social-SDK"
-          RELEASE_TAG="discord-sdk-1.10.19337"
-          ZIP_FILE="DiscordSocialSdk.zip"
-          ZIP_PATH="$RUNNER_TEMP/$ZIP_FILE"
-
+          REPOSITORY="$OWNER/Discord-Social-SDK"
           SDK_FILE="discord_partner_sdk.aar"
           SDK_PATH="app/libs/$SDK_FILE"
+          TEMP_DIR="$RUNNER_TEMP/discord-sdk"
 
-          AAR_ENTRY="discord_social_sdk/lib/release/discord_partner_sdk.aar"
+          mkdir -p "$TEMP_DIR" app/libs
 
-          mkdir -p app/libs
+          echo "Downloading latest Discord Social SDK..."
 
-          echo "Downloading Discord Social SDK..."
+          gh release download \
+            --repo "$REPOSITORY" \
+            --pattern "$SDK_FILE" \
+            --dir "$TEMP_DIR"
 
-          curl --fail --location --retry 3 \
-            "https://github.com/$REPOSITORY/releases/download/$RELEASE_TAG/$ZIP_FILE" \
-            --output "$ZIP_PATH"
-
-          if [[ ! -s "$ZIP_PATH" ]]; then
-            echo "::error::Discord SDK archive is missing or empty."
+          if [[ ! -s "$TEMP_DIR/$SDK_FILE" ]]; then
+            echo "::error::Discord SDK AAR not found or empty."
             exit 1
           fi
 
-          echo "Validating SDK archive..."
-          unzip -tq "$ZIP_PATH"
-
-          echo "Checking SDK AAR..."
-
-          if ! unzip -Z1 "$ZIP_PATH" | grep -Fxq "$AAR_ENTRY"; then
-            echo "::error::Expected SDK AAR not found: $AAR_ENTRY"
-            echo "Available AAR files:"
-            unzip -Z1 "$ZIP_PATH" | grep -Ei '\.aar$' || true
-            exit 1
-          fi
-
-          echo "Extracting SDK AAR..."
-
-          unzip -p "$ZIP_PATH" "$AAR_ENTRY" > "$SDK_PATH"
-
-          if [[ ! -s "$SDK_PATH" ]]; then
-            echo "::error::Discord SDK AAR is missing or empty."
-            exit 1
-          fi
+          cp "$TEMP_DIR/$SDK_FILE" "$SDK_PATH"
 
           echo "Discord Social SDK downloaded successfully."
           ls -lh "$SDK_PATH"
